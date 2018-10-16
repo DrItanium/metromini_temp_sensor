@@ -70,18 +70,21 @@ DallasTemperature sensors(&oneWire);
 Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
 dht11 DHT;
+#define POTENT_PIN A0
 bool useCelsius = true;
 
 const char humidityFmt[] PROGMEM = "Humidity: %d%%";
 const char temperatureFmt[] PROGMEM = "Temp: %s C";
 const char temperatureFmtF[] PROGMEM = "Temp: %s F";
-const char* const lines[] PROGMEM = { humidityFmt, temperatureFmt, temperatureFmtF };
+const char potentiometerValue[] PROGMEM = "Potentiometer: %d";
+const char* const lines[] PROGMEM = { humidityFmt, temperatureFmt, temperatureFmtF, potentiometerValue };
 
 char floatTmp[32];
 char line[32];
 char fmt[32];
 int prevHum = 0;
 float prevTemp = 0.0f;
+int prevPotent = 100;
 
 
 void delayThenClear(int delayAmount = 2000) {
@@ -150,17 +153,20 @@ void loop() {
   sensors.requestTemperatures();
   auto newHum = DHT.humidity;
   auto newTemp = useCelsius ? sensors.getTempCByIndex(0) : sensors.getTempFByIndex(0);
-  if (newHum != prevHum || newTemp != prevTemp) {
+  auto newPotent = analogRead(POTENT_PIN);
+  if (newHum != prevHum || newTemp != prevTemp || newPotent != prevPotent) {
     display.setTextSize(1);
     display.setTextColor(WHITE);
 
     prevHum = newHum;
     prevTemp = newTemp;
+    prevPotent = newPotent;
     display.clearDisplay();
     display.setCursor(0, 0);
     generateLineEntry(0, newHum);
     generateLineEntry(useCelsius ? 1 : 2, newTemp);
+    generateLineEntry(3, newPotent);
     display.display();
   }   
-  delay(2000); 
+  delay(prevPotent + 500); 
 }
