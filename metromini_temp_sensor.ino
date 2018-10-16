@@ -76,7 +76,7 @@ bool useCelsius = true;
 const char humidityFmt[] PROGMEM = "Humidity: %d%%";
 const char temperatureFmt[] PROGMEM = "Temp: %s C";
 const char temperatureFmtF[] PROGMEM = "Temp: %s F";
-const char potentiometerValue[] PROGMEM = "Potentiometer: %d";
+const char potentiometerValue[] PROGMEM = "Sampling Rate: %dms";
 const char* const lines[] PROGMEM = { humidityFmt, temperatureFmt, temperatureFmtF, potentiometerValue };
 
 char floatTmp[32];
@@ -147,6 +147,10 @@ void changeTempFormat() {
   useCelsius = !useCelsius;
 }
 
+int computeSamplingRate(int value) {
+  return value + 499;
+}
+
 // the loop function runs over and over again forever
 void loop() {  
   waitForStable();  
@@ -165,8 +169,8 @@ void loop() {
     display.setCursor(0, 0);
     generateLineEntry(0, newHum);
     generateLineEntry(useCelsius ? 1 : 2, newTemp);
-    generateLineEntry(3, newPotent);
+    generateLineEntry(3, computeSamplingRate(newPotent));
     display.display();
   }   
-  delay(prevPotent + 500); 
+  delay(computeSamplingRate(prevPotent)); 
 }
