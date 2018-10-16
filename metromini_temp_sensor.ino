@@ -32,14 +32,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <DallasTemperature.h>
 #include <dht11.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BMP280.h>
-#define DS18B20_PIN 7
+
 
 // comment next line to enable serial console output
 #define NO_SERIAL
-
-#define SEA_LEVEL_HPA 1013.25
-
 
 // If using software SPI (the default case):
 #define OLED_MOSI   9
@@ -47,10 +43,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define OLED_DC    11
 #define OLED_CS    12
 #define OLED_RESET 13
-#define BMP_SCK 6
-#define BMP_MISO 5
-#define BMP_MOSI 4
-#define BMP_CS 3
 #define BUTTON_PIN 2
 
 /* Uncomment this block to use hardware SPI
@@ -72,30 +64,25 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #if (SSD1306_LCDHEIGHT != 64)
 #error("Height incorrect, please fix Adafruit_SSD1306.h!");
 #endif
-
+#define DS18B20_PIN 7
 OneWire oneWire(DS18B20_PIN);
 DallasTemperature sensors(&oneWire);
 Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
-Adafruit_BMP280 bme(BMP_CS, BMP_MOSI, BMP_MISO, BMP_SCK);
+
 dht11 DHT;
 bool useCelsius = true;
-bool pressureSensorUp = false;
+
 const char humidityFmt[] PROGMEM = "Humidity: %d%%";
 const char temperatureFmt[] PROGMEM = "Temp: %s C";
 const char temperatureFmtF[] PROGMEM = "Temp: %s F";
-const char pressureSensor[] PROGMEM = "Pressure: %s Pa";
-const char altitudeLevel[] PROGMEM = "Altitude: %s m";
-const char baroTemperature[] PROGMEM = "BTemp: %s C";
-const char* const lines[] PROGMEM = { humidityFmt, temperatureFmt, pressureSensor, altitudeLevel, baroTemperature, temperatureFmtF };
+const char* const lines[] PROGMEM = { humidityFmt, temperatureFmt, temperatureFmtF };
 
 char floatTmp[32];
 char line[32];
 char fmt[32];
 int prevHum = 0;
 float prevTemp = 0.0f;
-float prevPressure = 0.0f;
-float prevAltitude = 0.0f;
-float prevBaroTemp = 0.0f;
+
 
 void delayThenClear(int delayAmount = 2000) {
   delay(delayAmount);
@@ -124,10 +111,6 @@ void setup() {
 
   printScreen("");
   sensors.begin();  
-  pressureSensorUp = bme.begin();
-  if(!pressureSensorUp) {
-      printScreen("Couldn't bring up pressure sensor, disabling!");
-  }  
   pinMode(BUTTON_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), changeTempFormat, FALLING);
 }
@@ -167,24 +150,16 @@ void loop() {
   sensors.requestTemperatures();
   auto newHum = DHT.humidity;
   auto newTemp = useCelsius ? sensors.getTempCByIndex(0) : sensors.getTempFByIndex(0);
-  auto newPressure = pressureSensorUp ? bme.readPressure() : 0.0f;
-  auto newAltitude = pressureSensorUp ? bme.readAltitude(SEA_LEVEL_HPA) : 0.0f;
-  auto newBaroTemp = pressureSensorUp ? bme.readTemperature() : 0.0f;
-  if (newHum != prevHum || newTemp != prevTemp || newPressure != prevPressure || newAltitude != prevAltitude || newBaroTemp != prevBaroTemp) {
+  if (newHum != prevHum || newTemp != prevTemp) {
     display.setTextSize(1);
     display.setTextColor(WHITE);
 
     prevHum = newHum;
     prevTemp = newTemp;
-    prevPressure = newPressure;
-    prevAltitude = newAltitude;
     display.clearDisplay();
     display.setCursor(0, 0);
     generateLineEntry(0, newHum);
-    generateLineEntry(useCelsius ? 1 : 5, newTemp);
-    generateLineEntry(2, newPressure);
-    generateLineEntry(3, newAltitude);
-    generateLineEntry(4, newBaroTemp);
+    generateLineEntry(useCelsius ? 1 : 2, newTemp);
     display.display();
   }   
   delay(2000); 
