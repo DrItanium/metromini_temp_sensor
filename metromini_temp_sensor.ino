@@ -71,13 +71,17 @@ Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
 dht11 DHT;
 #define POTENT_PIN A0
+#define ROTARY_CLK 6
+#define ROTARY_DT 5
+#define ROTARY_SW 4
 bool useCelsius = true;
 
 const char humidityFmt[] PROGMEM = "Humidity: %d%%";
 const char temperatureFmt[] PROGMEM = "Temp: %s C";
 const char temperatureFmtF[] PROGMEM = "Temp: %s F";
 const char potentiometerValue[] PROGMEM = "Sampling Rate: %dms";
-const char* const lines[] PROGMEM = { humidityFmt, temperatureFmt, temperatureFmtF, potentiometerValue };
+const char rotaryEncoderValue[] PROGMEM = "RotaryEnc Value: %s";
+const char* const lines[] PROGMEM = { humidityFmt, temperatureFmt, temperatureFmtF, potentiometerValue, rotaryEncoderValue };
 
 char floatTmp[32];
 char line[32];
@@ -116,6 +120,10 @@ void setup() {
   sensors.begin();  
   pinMode(BUTTON_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), changeTempFormat, FALLING);
+  pinMode(ROTARY_CLK, INPUT);
+  pinMode(ROTARY_DT, INPUT);
+  pinMode(ROTARY_SW, INPUT);
+  digitalWrite(ROTARY_SW, HIGH);
 }
 void waitForStable() {
   int chk = 0;
@@ -151,6 +159,23 @@ int computeSamplingRate(int value) {
   return value + 499;
 }
 
+auto oldA = HIGH;
+auto oldB = HIGH;
+auto rotaryVal = 0;
+int getEncoderTurn() {
+  auto result = 0;
+  auto newA = digitalRead(ROTARY_CLK);
+  auto newB = digitalRead(ROTARY_DT);
+  if (newA != oldA || newB != oldB) {
+    if (oldA == HIGH && newA == LOW) {
+      result = (oldB * 2) - 1;
+    }
+  }
+  oldA = newA;
+  oldB = newB;
+  return result;
+}
+
 // the loop function runs over and over again forever
 void loop() {  
   waitForStable();  
@@ -158,6 +183,11 @@ void loop() {
   auto newHum = DHT.humidity;
   auto newTemp = useCelsius ? sensors.getTempCByIndex(0) : sensors.getTempFByIndex(0);
   auto newPotent = analogRead(POTENT_PIN);
+  auto change = getEncoderTurn();
+  rotaryVal += change;
+  if (digitalRead(ROTARY_SW) == LOW) {
+    rotaryVal = 0;
+  }
   if (newHum != prevHum || newTemp != prevTemp || newPotent != prevPotent) {
     display.setTextSize(1);
     display.setTextColor(WHITE);
@@ -170,6 +200,7 @@ void loop() {
     generateLineEntry(0, newHum);
     generateLineEntry(useCelsius ? 1 : 2, newTemp);
     generateLineEntry(3, computeSamplingRate(newPotent));
+    generateLineEntry(4, rotaryVal);
     display.display();
   }   
   delay(computeSamplingRate(prevPotent)); 
